@@ -1,0 +1,76 @@
+---
+title: "BM_FinalProject"
+author: "Chris Deng"
+date: "2023-12-10"
+output: github_document
+---
+
+```{r}
+# 加载必要的库
+library(dplyr)
+library(caret)
+
+# 加载数据
+data <- read.csv("data/Project_2_data.csv")
+```
+
+```{r}
+# 数据处理
+# 年龄（Age）保持不变
+# 种族（Race）转换为哑变量
+data <- data %>%
+  mutate(Race = factor(Race, levels = c("White", "Black", "Other"))) %>%
+  mutate(dummy_race = model.matrix(~ Race - 1, data))
+
+# 婚姻状况（Marital Status）转换为哑变量，以单身（Single）作为参照
+data <- data %>%
+  mutate(MaritalStatus = factor(MaritalStatus, levels = c("Single", "Seperated", "Married", "Divorced", "Widowed"))) %>%
+  mutate(dummy_marital = model.matrix(~ MaritalStatus - 1, data))
+
+# T阶段（T Stage）T1, T2, T3, T4分别转换为1, 2, 3, 4
+data$TStage <- as.numeric(sub("T", "", data$TStage))
+
+# N阶段（N Stage）N1, N2, N3分别转换为1, 2, 3
+data$NStage <- as.numeric(sub("N", "", data$NStage))
+
+# 6th Stage转换为哑变量
+data <- data %>%
+  mutate(SixthStage = factor(SixthStage)) %>%
+  mutate(dummy_sixthstage = model.matrix(~ SixthStage - 1, data))
+
+data <- data %>%
+  mutate(differentiate = factor(differentiate, levels = c("Well differentiated", "Moderately differentiated", "Poorly differentiated", "Undifferentiated"))) %>%
+  mutate(dummy_differentiate = model.matrix(~ differentiate - 1, data))
+
+# A阶段（A Stage）将Regional编码为0，Distant编码为1
+data$AStage <- ifelse(data$AStage == "Regional", 0, 1)
+
+# 肿瘤大小（Tumor Size）作为连续变量处理
+# 雌激素状态（Estrogen Status）Negative编码为0，Positive编码为1
+data$EstrogenStatus <- ifelse(data$EstrogenStatus == "Negative", 0, 1)
+
+# 孕激素状态（Progesterone Status）Negative编码为0，Positive编码为1
+data$ProgesteroneStatus <- ifelse(data$ProgesteroneStatus == "Negative", 0, 1)
+
+# 区域节点检查（Regional Node Examined）和区域节点阳性（Regional Node Positive）保持不变
+
+# 死亡状态（Status）Dead编码为1，Alive编码为0
+data$Status <- ifelse(data$Status == "Dead", 1, 0)
+
+
+```
+
+Which factors (features) affect the risk significantly? Are there interacting effects
+```{r}
+model <- glm(Status ~ Age + dummy_race + dummy_marital + TStage + NStage + dummy_sixthstage + dummy_differentiate + Grade + AStage + TumorSize + EstrogenStatus + ProgesteroneStatus + RegionalNodeExamined + RegionalNodePositive, data = data, family = "binomial")
+
+summary(model)
+
+# 使用模型进行预测
+predictions <- predict(model, type = "response")
+head(predictions)
+
+```
+ * Age,Race,Tstage,Nstage,differentiated,EstrogenStatus,ProgesteroneStatus, RegionalNodeExamined, RegionalNodePositive are significant.
+ 
+ * 找交互作用，differentiate和Grade肯定有, differentiate和Grade基本上等价
